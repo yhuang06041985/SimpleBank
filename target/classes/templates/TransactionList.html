@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Transaction</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
+          rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/site.css}">
+
+    <style>
+        #summary,
+        #debit_card,
+        #award_cash_card,
+        #travel_credit_card {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container p-2">
+  <div class="table border p-3">
+    <div class="row">
+        <div class="col-8 p-2">
+            <h3 class="text-center" th:text="${accountInfo}"></h3>
+        </div>
+        <div class="col-4 text-end">
+            <a class="btn btn-primary" th:href="@{/transaction/new/{id}(id=${accountId})}">
+                Create Transaction
+            </a>
+        </div>
+    </div>
+      <form th:action="@{/transaction/list/{id}(id=${accountId})}"
+            method="get">
+          <div class="border rounded p-3 mb-3">
+
+              <h5 class="mb-3">Search Transactions</h5>
+
+              <form th:action="@{/transaction/list/{id}(id=${accountId})}"
+                    method="get">
+
+                  <div class="row g-2 align-items-end">
+
+                      <div class="col-md-3">
+                          <label class="form-label">From Date</label>
+                          <input type="datetime-local" name="fromDate"
+                             id="fromDate"    class="form-control">
+                      </div>
+
+                      <div class="col-md-3">
+                          <label class="form-label">To Date</label>
+                          <input type="datetime-local" name="toDate"
+                               id="toDate"  class="form-control">
+                      </div>
+
+                      <div class="col-md-3">
+                          <label class="form-label">Amount Greater Than</label>
+                          <input type="number" name="amount"
+                                 step="0.01" min="0"
+                                 class="form-control">
+                      </div>
+
+                      <div class="col-md-3 d-flex gap-2">
+                          <button type="submit"
+                                  class="btn btn-primary">
+                              Search
+                          </button>
+
+                          <button type="reset"
+                                  class="btn btn-secondary">
+                              Clear
+                          </button>
+                          <a th:href="@{/}" class="btn btn-primary">Account</a>
+                      </div>
+
+                  </div>
+              </form>
+      </div>
+
+
+    <table class="table table-striped table-hover table-bordered align-middle">
+
+        <thead class="table-dark">
+            <tr>
+                <th>Date</th>
+                <th>Transaction Type</th>
+                <th>Company</th>
+                <th>Description</th>
+                <th>Amount</th>
+                <th>Balance</th>
+
+            </tr>
+        </thead>
+
+        <tbody>
+            <tr th:each="item : ${transactions}">
+                <td th:text="${#temporals.format(item.transactionDate, 'MM/dd/yyyy')}"></td>
+                <td th:text="${item.transactionType.typeName}"></td>
+                <td th:text="${item.company != null ? item.company : ''}"></td>
+                <!--td th:if="${item.company != null}"
+                th:text="${item.company}"></td-->
+                <td th:text="${item.description != null ? item.description : ''}"></td>
+
+                <td th:text="${#numbers.formatDecimal(item.amount, 1, 'COMMA', 2, 'POINT')}"></td>
+                <td th:text="${#numbers.formatDecimal(item.accountTransaction.balance, 1, 'COMMA', 2, 'POINT')}"></td>
+
+            </tr>
+        </tbody>
+        </table>
+    </div>
+
+    <script>
+        let fromDate = document.getElementById("fromDate");
+        let toDate = document.getElementById("toDate");
+
+        function validateDates() {
+
+            if (fromDate.value && toDate.value &&
+                toDate.value < fromDate.value) {
+
+                alert("To Date must be equal to or greater than From Date");
+
+                toDate.value = fromDate.value;
+            }
+        }
+
+        fromDate.addEventListener("change", validateDates);
+        toDate.addEventListener("change", validateDates);
+    </script>
+
+</body>
