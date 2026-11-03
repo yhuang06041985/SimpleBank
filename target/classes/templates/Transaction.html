@@ -34,7 +34,7 @@
 
         <div class="mb-3">
             <label>Transaction Type</label>
-            <select th:field="*{transactionType.id}" required>
+            <select th:field="*{transactionType.id}" required class="form-control">
                 <option value="">-- Select Type --</option>
                 <option th:each="type : ${transactionTypes}"
                         th:value="${type.id}"

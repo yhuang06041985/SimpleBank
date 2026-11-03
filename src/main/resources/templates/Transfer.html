@@ -34,7 +34,7 @@
             </div>
             <div class="row">
                 <div class="col-md-4">
-                    <select name="fromAccountId" style="height: 30px" class="form-select">
+                    <select name="fromAccountId" class="form-select">
                         <option th:each="account : ${accounts}"
                                 th:if="${account.accountType.title == 'Debit Card'}"
                                 th:value="${account.id}"
@@ -64,7 +64,7 @@
                     <input name="amount" type="number" step="0.01"
                            class="form-control" required min="0.01">
                 </div>
-            </div>
+            </div><br>
             <div class="row">
                 <div class="col-md-4"></div>
                 <div class="col-md-4>">
