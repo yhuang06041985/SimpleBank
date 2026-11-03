@@ -31,6 +31,7 @@ import jakarta.validation.constraints.Size;
 import jakarta.validation.Valid;
 import org.springframework.validation.BindingResult;
 import com.example.demo.Models.ValidBalance;
+import com.example.demo.Repository.AccountRepository;
 
 @Controller
 @RequestMapping("/transaction")
@@ -39,11 +40,14 @@ public class TransactionController {
     private final TransactionService transactionService;
     private final TransactionTypeService transactionTypeService;
     private final AccountService accountService;
+    private final AccountRepository accountRepository;
 
-    public TransactionController(TransactionService transactionService, TransactionTypeService transactionTypeService, AccountService accountService) {
+    public TransactionController(TransactionService transactionService, AccountRepository accountRepository,
+                                 TransactionTypeService transactionTypeService, AccountService accountService) {
         this.transactionService = transactionService;
         this.transactionTypeService = transactionTypeService;
         this.accountService = accountService;
+        this.accountRepository = accountRepository;
     }
 
     @GetMapping("/new/{id}")
@@ -52,16 +56,32 @@ public class TransactionController {
             Model model) {
 
         Transaction transaction = new Transaction();
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() ->
+                        new IllegalArgumentException("Account not found"));
+
 
         model.addAttribute("transaction", transaction);
         model.addAttribute("accountId", id);
-        List<TransactionType> types =
+        List<TransactionType> transactionType =
                 transactionTypeService.getAllTransactionType();
+        if (account.getAccountType().getTitle()
+                .equalsIgnoreCase("Debit Card")) {
 
-        model.addAttribute("transactionTypes", types);
+            transactionType = transactionType.stream()
+                    .filter(t -> List.of("Deposit","Withdrow","Purchase","Fee")
+                                    .contains(t.getTypeName()))
+                            .toList();
 
-        //model.addAttribute("transactionTypes",
-        //        transactionTypeService.getAllTransactionType());
+        } else if (account.getAccountType().getTitle()
+                .equalsIgnoreCase("Credit Card")) {
+            transactionType = transactionType.stream()
+                    .filter(t -> List.of("Purchase", "Payment", "Refund")
+                            .contains(t.getTypeName()))
+                    .toList();
+        }
+
+        model.addAttribute("transactionTypes", transactionType);
 
         return "transaction";
     }
@@ -134,52 +154,49 @@ public class TransactionController {
             @ModelAttribute Transaction transaction,
             @RequestParam Long accountId,
             Model model) {
-        ValidBalance validBalance = transactionService
-                .isEnoughFunction(accountId, transaction);
-        if (validBalance.isValid ) {
-
-            BigDecimal amount = transaction.getAmount();
-
-            if (validBalance.balance.compareTo(amount) < 0) {
-
-                model.addAttribute("errorMessage",
-                        "You don't have enough funds. Your available balance is "
-                                + validBalance.balance);
-
-                model.addAttribute("transaction", transaction);
-
-                return "transaction";
-            }
-        }
-        transactionService.saveTransaction(transaction, accountId);
+        try {
+            transactionService.saveTransaction(transaction, accountId);
             model.addAttribute("accountId", accountId);
             List<Transaction> transactions = transactionService.getTransactionsByAccountId(accountId);
             model.addAttribute("transactions", transactions);
-        return "redirect:/transaction/getlist/" + accountId;
+            return "redirect:/transaction/getlist/" + accountId;
+        }
+        catch (IllegalArgumentException ex) {
+
+            model.addAttribute("errorMessage", ex.getMessage());
+
+            model.addAttribute("transaction", transaction);
+
+            model.addAttribute("transactionTypes",
+                    transactionTypeService.getAllTransactionType());
+
+            return "transaction";
+        }
 
     }
 
-        @PostMapping("/transfer")
-        public String getTransfer(
-                @RequestParam Long fromAccountId,
-                @RequestParam Long toAccountId,
-                @RequestParam BigDecimal amount,
-                Model model) {
+    @PostMapping("/transfer")
+    public String getTransfer(
+            @RequestParam Long fromAccountId,
+            @RequestParam Long toAccountId,
+            @RequestParam BigDecimal amount,
+            Model model) {
 
-            try {
-                transactionService.UpdateTransferProcess(
-                        fromAccountId, toAccountId, amount);
+        try {
+            transactionService.validateEnoughFund(fromAccountId, amount);
+            transactionService.UpdateTransferProcess(
+                    fromAccountId, toAccountId, amount);
 
-                return "redirect:/transaction/list";
-            }
-            catch (IllegalArgumentException ex) {
-
-                model.addAttribute("errorMessage", ex.getMessage());
-                model.addAttribute("accounts", accountService.getAllAccount());
-
-                return "index";  // Return your transfer page
-            }
+            return "redirect:/";
         }
+        catch (IllegalArgumentException ex) {
+
+            model.addAttribute("errorMessage", ex.getMessage());
+            model.addAttribute("accounts", accountService.getAllAccount());
+
+            return "transfer";
+        }
+    }
 
 
 }

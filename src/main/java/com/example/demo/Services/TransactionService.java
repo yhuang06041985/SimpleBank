@@ -26,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.math.BigDecimal;
+import  com.example.demo.Repository.AccountRepository;
 import com.example.demo.Models.ValidBalance;
 
 @Service
@@ -36,8 +37,10 @@ private final AccountService accountService;
 private final AccountTransactionService accountTransactionService;
 private final TransactionTypeService transactionTypeService;
 private final AccountTransactionRepository accountTransactionRepository;
+private final AccountRepository accountRepository;
 
 public TransactionService(TransactionRepository transactionRepository,
+                          AccountRepository accountRepository,
                           AccountService accountService, AccountTransactionService accountTransactionService,
                           TransactionTypeService transactionTypeService, AccountTransactionRepository accountTransactionRepository)
 {
@@ -46,6 +49,7 @@ public TransactionService(TransactionRepository transactionRepository,
     this.accountTransactionService = accountTransactionService;
     this.transactionTypeService = transactionTypeService;
     this.accountTransactionRepository = accountTransactionRepository;
+    this.accountRepository = accountRepository;
 }
 
 @Transactional
@@ -147,7 +151,7 @@ private Transaction saveAccount(Transaction transaction) {
                 finalBalance = balance.add(amount);
                 break;
 
-            case "Transfer":
+            case "Payment":
                 finalBalance = balance.subtract(amount);
                 break;
 
@@ -257,27 +261,34 @@ private Account updateBankBalance(Account account, BigDecimal amount)
     return account;
 }
 
-private Transaction createTransaction(Account account, BigDecimal amount)
-{
-    Transaction transaction = new Transaction();
-    transaction.setAccount(account);
+    private Transaction createTransaction(Account account, BigDecimal amount)
+    {
+        Transaction transaction = new Transaction();
+        transaction.setAccount(account);
 
-    if (account.getAccountType().getTitle() == "Debit Card") {
-        TransactionType transactionType = transactionTypeService.getTransactionTypeByTitle("Withdrow");
-        transactionType.setTypeName("Withdrow");
-        transaction.setTransactionType(transactionType);
-    }
-    else {
-        TransactionType transactionType = transactionTypeService.getTransactionTypeByTitle("Payment");
-        transactionType.setTypeName("Payment");
-        transaction.setTransactionType(transactionType);
-    }
+        if (account.getAccountType().getTitle()
+                .equalsIgnoreCase("Debit Card")) {
 
-    LocalDateTime date = LocalDateTime.now();
-    transaction.setTransactionDate(date);
-    transaction.setAmount(amount);
-    return transactionRepository.save(transaction);
-}
+            TransactionType transactionType =
+                    transactionTypeService.getTransactionTypeByTitle("Withdrow");
+
+            transaction.setTransactionType(transactionType);
+        }
+        else {
+
+            TransactionType transactionType =
+                    transactionTypeService.getTransactionTypeByTitle("Payment");
+
+            transaction.setTransactionType(transactionType);
+        }
+
+        LocalDateTime date = LocalDateTime.now();
+
+        transaction.setTransactionDate(date);
+        transaction.setAmount(amount);
+
+        return transactionRepository.save(transaction);
+    }
 
 private AccountTransaction createAccountTransaction(Account account, Transaction transaction)
 {
@@ -308,5 +319,21 @@ public  ValidBalance isEnoughFunction(Long accountId, Transaction transaction)
     }
     return validBalance;
 }
+
+public void validateEnoughFund(Long accountId, BigDecimal amount) {
+
+    Account account = accountRepository.findById(accountId)
+            .orElseThrow(() ->
+                    new IllegalArgumentException("Account not found"));
+
+    // Validate withdrawal balance
+    if (amount.compareTo(account.getBalance()) > 0) {
+        throw new IllegalArgumentException(
+                "Insufficient funds. Available balance: "
+                        + account.getBalance());
+
+    }
+}
+
 
 }
